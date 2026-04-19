@@ -32,7 +32,7 @@ select *,TO_CHAR(visit_date, 'YYYY-MM') AS partition_date from cte
 def source_data(parquet_reader):
     root_path = os.getenv(
         "PARQUET_ROOT_PATH",
-        "C:\\Users\\yatsk\\Dllm_project\\dqe-automation\\PyTest_DQ_Framework\\parquet_data"  # local default
+        "C:\\Users\\yatsk\\llm_project\\dqe-automation\\PyTest_DQ_Framework\\parquet_data"  # local default
     )
 
     # Subfolder specific to this check
