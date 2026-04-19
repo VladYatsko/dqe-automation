@@ -1,0 +1,114 @@
+pipeline {
+    agent any
+
+    environment {
+        DB_HOST = 'postgres'
+        DB_NAME = 'mydatabase'
+        PYTHONPATH = "${WORKSPACE}"
+        JENKINS_PARQUET_PATH = "/parquet_data"
+        REPORT_DIR = "${WORKSPACE}/PyTest_DQ_Framework/html_report/assets"
+        PROJECT_DIR = "PyTest_DQ_Framework"
+        POSTGRES_SECRET = credentials('jenkins-postgres-credentials')
+    }
+
+    stages {
+        stage('Show Credentials') {
+            steps {
+                echo "Postgres user: ${POSTGRES_SECRET_USR}"
+            }
+        }
+
+        stage('Prepare System') {
+            steps {
+                sh '''
+                    apt-get update
+                    apt-get install -y libpq-dev python3 python3-pip python3-venv
+
+                    echo "Waiting for Postgres..."
+
+                    until pg_isready -h postgres -p 5432; do
+                    echo "Postgres not ready yet..."
+                    sleep 2
+                    done
+
+                    echo "Postgres is ready!"
+                '''
+            }
+        }
+
+        stage('Set Up Environment') {
+            steps {
+                sh '''
+                    cd "${WORKSPACE}/${PROJECT_DIR}"
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+                '''
+            }
+        }
+
+        stage('Run Data Quality Tests') {
+            steps {
+                sh '''
+                    set -e
+
+                    # Define paths
+                    REPORT_PATH="${WORKSPACE}/${REPORT_DIR}"
+                    mkdir -p "$REPORT_PATH"
+                    echo "Using parquet path: ${JENKINS_PARQUET_PATH}"
+
+                    # Generate timestamp
+                    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+                    REPORT_FILE="$REPORT_PATH/report_${TIMESTAMP}.html"
+
+                    # Activate venv
+                    cd "${WORKSPACE}/${PROJECT_DIR}"
+                    . venv/bin/activate
+
+                    export PYTHONPATH="${WORKSPACE}"
+                    export PARQUET_ROOT_PATH="${JENKINS_PARQUET_PATH}"
+
+                    pytest \\
+                        --db_host "${DB_HOST}" \\
+                        --db_user "${POSTGRES_SECRET_USR}" \\
+                        --db_password "${POSTGRES_SECRET_PSW}" \\
+                        --db_name "${DB_NAME}" \\
+                        --db_port 5432 \\
+                        --html="$REPORT_FILE" \\
+                        -v || true
+                    echo "Report generated: $REPORT_FILE"
+                '''
+            }
+        }
+        stage('Archive Results') {
+            steps {
+                // **CORRECTION HERE**
+                // Archive the main HTML report file.
+                // The path is relative to the workspace root.
+                // The resulting archived file will be located at:
+                // PyTest_DQ_Framework/report.html
+                // archiveArtifacts artifacts: "${PROJECT_DIR}/report.html", allowEmpty: false
+
+                // If the DQ framework generates files in a different location
+                // like the one mentioned in the original error, you need
+                // to archive that specific path:
+                sh 'ls -l PyTest_DQ_Framework/parquet_data/'
+                archiveArtifacts artifacts: "${WORKSPACE}/parquet_data/*", allowEmptyArchive: true
+                archiveArtifacts artifacts: 'PyTest_DQ_Framework/html_report/assets/*.html', allowEmptyArchive: true
+                // archiveArtifacts artifacts: 'PyTest_DQ_Framework/parquet_data/**'
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline execution completed.'
+            archiveArtifacts artifacts: '**' // Archives all .jar files in build/libs and subdirectories
+
+        }
+        success { echo 'DQ checks were runned!' }
+
+        failure { echo 'Pipeline error (not test failure)' }
+    }
+}
