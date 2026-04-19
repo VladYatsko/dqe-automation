@@ -1,0 +1,6 @@
+pytest
+pytest-html
+pandas
+pyarrow
+psycopg2
+SQLAlchemy
