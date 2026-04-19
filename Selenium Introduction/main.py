@@ -1,25 +1,13 @@
-import time
-import os
-import pandas as pd
+import sys
+import subprocess
 
-from selenium import webdriver
-from selenium.webdriver.chrome.webdriver import WebDriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
-
-
-class SeleniumWebDriverContextManager:
-    def __init__(self):
-
-    def __enter__(self):
-
-    def __exit__(self, exc_type, exc_value, traceback):
-
+def run_script(script_name):
+    try:
+        result = subprocess.run([sys.executable, script_name], check=True)
+        print(f"Successfully ran {script_name}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error running {script_name}: {e}")
 
 if __name__ == "__main__":
-    with SeleniumWebDriverContextManager() as driver:
-        # file_path = ...
-        # drivet.get(...)
-        # ...
+    run_script('main_table.py')
+    run_script('main_chart.py')
